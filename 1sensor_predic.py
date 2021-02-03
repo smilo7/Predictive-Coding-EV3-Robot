@@ -55,3 +55,14 @@ while True:
 """
 mean = ave_l_levels(button)
 print("results", mean)
+
+
+
+"""
+In this example we infer one hidden state distance X
+Robot is to remain static in one location
+We assume the generative model has already been learned (ie how light reading is related to distance)
+"""
+
+class PP_Robo():
+    
