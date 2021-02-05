@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import numpy as np
 from ev3dev2.sensor.lego import ColorSensor, UltrasonicSensor
 from ev3dev2.display import Display
@@ -10,7 +11,7 @@ class pp_unit():
         
         Version 0.3 Alternative approach where the prediction error is cast as a motion 
     """
-    def __init__(self,dt, mu_v, Sigma_w, Sigma_z, a_mu):   
+    def __init__(self, dt, mu_v, Sigma_w, Sigma_z, a_mu):   
         self.dt = dt    # integration step
         self.mu_x = mu_v   # initializing the best guess of hidden state by the hierarchical prior
         self.F = 0      # Free Energy
@@ -20,19 +21,24 @@ class pp_unit():
         self.Sigma_z = Sigma_z # Estimated variance of the sensory observation 
         self.alpha_mu = a_mu # Learning rate of the gradient descent mu (hidden state)
     
-    def g(self,x,v):
+    def g(self,x, v):
         """
             equation of sensory mapping of the generative model: g(x) at point x 
             Given as input for this example equal to the true generative process g_gp(x)
+            x is the current best guess of the hidden state (distance) 
         """
-        return g_gp(x,v)
+        
+        return 43.11
+        #return g_gp(x,v)
     
     def dg(self, x):
         """
             Partial derivative of the equation of sensory mapping of the generative model towards x: g'(x) at point x 
             Given as input for this example equal to the true derivative of generative process dg_gp(x)
         """
-        return dg_gp(x)
+        
+        return -0.411
+        #return dg_gp(x)
     
     def f(self,x,v):
         """
@@ -80,7 +86,7 @@ class pp_unit():
         return self.F, self.mu_x , self.g(self.mu_x,0)
 
 
-def run(mu_v, Sigma_w, Sigma_z, a_mu, us_sensor):
+def run(mu_v, Sigma_w, Sigma_z, a_mu, l_sensor):
     """
     Basic simplist example perceptual inference    
 
@@ -90,7 +96,7 @@ def run(mu_v, Sigma_w, Sigma_z, a_mu, us_sensor):
         Sigma_z  - Estimated variance of the sensory observation  
         a_mu     - Learning rate for mu
     """
-
+    N = 100
     # Init tracking
     mu_x = np.zeros(N) # Belief or estimation of hidden state 
     F = np.zeros(N) # Free Energy of AI neuron
@@ -98,14 +104,15 @@ def run(mu_v, Sigma_w, Sigma_z, a_mu, us_sensor):
     x = np.zeros(N) # True hidden state
     y = np.zeros(N) # Sensory signal as input to AI neuron
 
-    robot_brain = pp_unit() #make pp object
+    robot_brain = pp_unit(dt, mu_v, Sigma_w, Sigma_z, a_mu) #make pp object
     
-    N = 100
+    
 
     start_time = time.time()
-    for i in np.arrange(1, N):
+    for i in np.arange(1, N):
         #Active inference
-        y[i] = us_sensor.distance_centimeters() #take sensor reading
+        y[i] = l_sensor.ambient_light_intensity #take sensor reading
+        print('ligght reading', y[i])
         F[i], mu_x[i], mu_y[i] = robot_brain.inference_step(i, mu_v, y[i])
 
 
@@ -116,7 +123,9 @@ def run(mu_v, Sigma_w, Sigma_z, a_mu, us_sensor):
 
 
 s_light = ColorSensor() #initialise the color sensor
-us = UltrasonicSensor()
-us.MODE_US_SI_CM = 'US-SI-CM' #set sensor to take individual readings in centimeters
-dist_prior = us.distance_centimeters()
-F1, mu_x, mu_y, x, y = run(mu_v=dist_prior, )
+
+dt = 0.005 #timestep
+actual_dist = 50
+dist_prior = 48 #say it thinks it is 25cm away to start with. this is its belief
+F1, mu_x, mu_y, x, y = run(mu_v=dist_prior, Sigma_w=1, Sigma_z=1, a_mu=1, l_sensor=s_light)
+print(F1, mu_x, mu_y, x, y)
