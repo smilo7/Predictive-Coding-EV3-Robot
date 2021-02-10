@@ -1,8 +1,43 @@
 #!/usr/bin/env python3
 import numpy as np
+import pandas as pd
+from scipy.optimize import curve_fit
+import math
 from ev3dev2.sensor.lego import ColorSensor, UltrasonicSensor
 from ev3dev2.display import Display
 import time
+
+
+def read_data_from_file(filename):
+    return np.genfromtxt(filename, delimiter=',')
+
+def objective_func(x, a, b, c):
+    return (a ** (x-b)) + c
+
+def fit_function_to_data(distance, light):
+    """
+    fits a function to the data and then returns the parameters
+    """
+    params, _ = curve_fit(objective_func, distance, light)
+    a, b, c = params
+    print("y = (",a,"(^x-",b,")) +",c)
+    x_line = np.arange(min(distance), max(distance))
+    y_line = objective_func(x_line, a, b, c)
+    return a, b, c
+
+
+def g_gp(x,v):
+    a = params_a
+    b = params_b
+    c = params_c
+    return (a ** (x-b)) + c
+
+def dg_gp(x):
+    a = params_a
+    b = params_b
+    return (x-b) * (a**(x-b-1))
+
+
 
 class pp_unit():
     """
@@ -28,8 +63,8 @@ class pp_unit():
             x is the current best guess of the hidden state (distance) 
         """
         
-        return 43.11
-        #return g_gp(x,v)
+        #return 43.11
+        return g_gp(x,v)
     
     def dg(self, x):
         """
@@ -37,8 +72,8 @@ class pp_unit():
             Given as input for this example equal to the true derivative of generative process dg_gp(x)
         """
         
-        return -0.411
-        #return dg_gp(x)
+        #return -0.411
+        return dg_gp(x)
     
     def f(self,x,v):
         """
@@ -96,7 +131,7 @@ def run(mu_v, Sigma_w, Sigma_z, a_mu, l_sensor):
         Sigma_z  - Estimated variance of the sensory observation  
         a_mu     - Learning rate for mu
     """
-    N = 100
+    N = 1000
     # Init tracking
     mu_x = np.zeros(N) # Belief or estimation of hidden state 
     F = np.zeros(N) # Free Energy of AI neuron
@@ -122,10 +157,26 @@ def run(mu_v, Sigma_w, Sigma_z, a_mu, l_sensor):
     return F, mu_x, mu_y, x, y
 
 
+def write_results_to_csv(filename, F1, mu_x, mu_y, x, y):
+    data = {'F1':F1, 'mu_x':mu_x, 'mu_y':mu_y, 'x':x, 'y':y}    
+    df = pd.DataFrame(data)
+    df.to_csv(filename)
+
 s_light = ColorSensor() #initialise the color sensor
 
 dt = 0.005 #timestep
-actual_dist = 50
-dist_prior = 48 #say it thinks it is 25cm away to start with. this is its belief
+actual_dist = 60
+dist_prior = 40 #say it thinks it is 25cm away to start with. this is its belief
+
+#find the params based on data for the generative function g_gp(x)
+light_data = read_data_from_file('data.csv')
+distances = np.arange(0, 100, 5)
+print("file contents", light_data, type(light_data))
+
+params_a, params_b, params_c = fit_function_to_data(distances, light_data)
+
 F1, mu_x, mu_y, x, y = run(mu_v=dist_prior, Sigma_w=1, Sigma_z=1, a_mu=1, l_sensor=s_light)
+
+write_results_to_csv('inference.csv', F1, mu_x, mu_y, x, y) #write results out to csv file
+
 print(F1, mu_x, mu_y, x, y)

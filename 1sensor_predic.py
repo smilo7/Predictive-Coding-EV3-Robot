@@ -30,7 +30,7 @@ def return_pressed_button(button):
     return True, pressed_button
         
 
-def record_light(duration=3, N=100):
+def record_light(duration=3, N=1000):
     """records light levels for given number of secs seconds and calculates average"""
     start_time = time.time()
     t_elapsed = time.time() - start_time
@@ -44,27 +44,54 @@ def record_light(duration=3, N=100):
     return l_arr
 
 
-def ave_l_levels(button):
-    """gets the mean light reading. ideally robot will be stationary so it is just for that distance"""
+def get_l_levels():
+    """gets the light levels if the button has been pressed"""
     #start program
-    pressed, button = return_pressed_button(button)
-    mean = 0
+    pressed, btn = return_pressed_button(button)
+    l_levels = 0
     if pressed:
         l_levels = record_light()
-        mean = sum(l_levels)/len(l_levels)
-    return mean
+    return l_levels
 
-""""
-while True:
-    print("light intensity at start", l_sensor.ambient_light_intensity)
+def calc_mean(data):
+    return sum(data)/len(data)
+
+def calc_variance(data):
+    """
+    Calculate the variance for a given array of points
+    input: data (array)
+    return: variance
+    """
+    mean = sum(data) / len(data)
+    deviations = [(x-mean) ** 2 for x in data]
+    variance = sum(deviations) /len(data)
+    return variance
+
+def write_results_to_csv(data):
+    """
+    Dumps to results to a csv file so that the robot can use it when running pp_unit program
+    """
+    writeme = np.asarray(data)
+    writeme.tofile('data.csv', sep=',', format='%10.5f')
+
+ 
 """
-#mean = ave_l_levels(button)
-#record 3 different levels
-means = []
-for i in range(0,15):
-    means.append(ave_l_levels(button))
+Calculate mean and variance light intensity over several distances
+Robot should be moved to the correct distance by hand
+"""
 
-print("results", means)
+
+NUM_INTERVALS = (20) #numebr of distance intervals 150cm / 20
+means = []
+variances = []
+for i in range(0, NUM_INTERVALS):
+    l_levels = get_l_levels()
+    means.append(calc_mean(l_levels))
+    variances.append(calc_variance(l_levels))
+
+print("results", means, variances)
+write_results_to_csv(means)
+#write_results_to_csv([means, variances])
 
 
 
