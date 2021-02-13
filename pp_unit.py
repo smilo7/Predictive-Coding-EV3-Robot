@@ -147,7 +147,7 @@ def run(mu_v, Sigma_w, Sigma_z, a_mu, l_sensor):
     for i in np.arange(1, N):
         #Active inference
         y[i] = l_sensor.ambient_light_intensity #take sensor reading
-        print('ligght reading', y[i])
+        print('light reading', y[i])
         F[i], mu_x[i], mu_y[i] = robot_brain.inference_step(i, mu_v, y[i])
 
 
