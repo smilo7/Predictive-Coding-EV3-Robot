@@ -1,3 +1,4 @@
 # pp-robot
 
-predictive coding on a robot
+Neurally plausible predictive coding on a Mindstorms EV3 robot.
+- Main model in robot_brain.py
