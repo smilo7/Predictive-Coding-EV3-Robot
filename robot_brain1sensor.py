@@ -65,7 +65,7 @@ class robot_brain():
         
         #self.phi = self.phi + dt * lr * ( - e_p + e_u * self.g_deriv(self.phi)) #update best guess with our new prediction! TODO probably throw in a learning rate in here.
         
-        self.phi = self.phi + dt * lr * ( - self.eps_p + self.eps_u * self.g_deriv(self.phi)) 
+        self.phi = self.phi + dt * lr * ( - e_p + e_u * self.g_deriv(self.phi))
         
         #self.F = self.calc_free_energy(u)
 
