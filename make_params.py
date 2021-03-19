@@ -113,3 +113,5 @@ params = {'s1':
 #write the found parameters to file
 with open('genmap_params.json', 'w') as outfile:
     json.dump(params, outfile)
+
+print("done")

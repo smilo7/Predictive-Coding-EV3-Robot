@@ -13,7 +13,7 @@ class robot_brain:
     """
     This class deals with the neuronal working of the robots brain state(s)
     """
-    def __init__(self, dt, V_p, Sigma_p, Sigma_u):
+    def __init__(self, dt, V_p, Sigma_p, Sigma_u, g_params):
         self.dt = dt
         self.phi = V_p #phi is the current best guess, we initialise it to the "hierachical prior"
 
@@ -24,20 +24,56 @@ class robot_brain:
         self.Sigma_u = Sigma_u #variance of sensory input
         
         self.F = 0 #Free energy!
+
+        self.s1params_a = g_params[0]
+        self.s1params_b = g_params[1]
+        self.s1params_c = g_params[2]
+        
+        self.s2params_a = g_params[3]
+        self.s2params_b = g_params[4]
+        self.s2params_c = g_params[5]
     
     def g(self, phi, sensor_num):
         #generative model
         if sensor_num == 0:
-            return g_true_l1(phi)
+            return self.g_true_l1(phi)
         elif sensor_num ==1:
-            return g_true_l2(phi)
+            return self.g_true_l2(phi)
     
     def g_deriv(self, phi, sensor_num):
         if sensor_num == 0:
-            return g_true_deriv_l1(phi)
+            return self.g_true_deriv_l1(phi)
         elif sensor_num == 1:
-            return g_true_deriv_l2(phi)
+            return self.g_true_deriv_l2(phi)
 
+
+    def g_true_l1(self, x):
+        """
+        generative function for light sensor 1
+        """
+        a = self.s1params_a
+        b = self.s1params_b
+        c = self.s1params_c
+        return (a ** (x-b)) + c
+
+    def g_true_l2(self, x):
+        """
+        generative function for light sensor 3
+        """
+        a = self.s2params_a
+        b = self.s2params_b
+        c = self.s2params_c
+        return (a ** (x-b)) + c
+
+    def g_true_deriv_l1(self, x):
+        a = self.s1params_a
+        b = self.s1params_b
+        return (x-b) * (a**(x-b-1))
+
+    def g_true_deriv_l2(self, x):
+        a = self.s2params_a
+        b = self.s2params_b
+        return (x-b) * (a**(x-b-1))
 
     def calc_free_energy(self, V_p, u):
         """
@@ -60,7 +96,7 @@ class robot_brain:
         """
 
         lr = 1
-
+        dt = self.dt
         #page 4 of bogacz for the maths
 
         #Prediction errors
@@ -89,7 +125,7 @@ class robot_brain:
         return self.phi, phi_u
 
 
-def run(N, dt, V, V_p, Sigma_p, Sigma_u, l_sensors):
+def run(N, dt, V, V_p, Sigma_p, Sigma_u, l_sensors, g_params):
     """
     iterate the robot brain through time
     N- Number of steps to simulate
@@ -100,7 +136,8 @@ def run(N, dt, V, V_p, Sigma_p, Sigma_u, l_sensors):
     l_sensor - light sensor object
     """
 
-    robot = robot_brain(dt, V_p, Sigma_p, Sigma_u)
+    robot = robot_brain(dt, V_p, Sigma_p, Sigma_u, g_params)
+
     SENSOR_NUM = len(l_sensors)#2
     #inititalise arrays for recording results
     phi = np.zeros(N)
@@ -118,106 +155,5 @@ def run(N, dt, V, V_p, Sigma_p, Sigma_u, l_sensors):
 
         #u[i] = g_true(V) #sensory input given as true generative process generating sensory input
         phi[i], phi_u[i] = robot.inference(V_p, u[i]) #do inference at the current timestep with the previous hierachical prior, and current sensory input
-    
+        print('Epoch \r',i+1, '/', N, end="")
     return phi, phi_u, v , u
-
-def read_data_from_file_json(filename):
-    with open(filename) as json_file:
-        data = json.load(json_file)
-    return data
-
-def objective_func(x, a, b, c):
-    """
-    objective function for to fit the curve for the generative mapping
-    """
-    return (a ** (x-b)) + c
-
-def g_true_l1(x):
-    """
-    generative function for light sensor 1
-    """
-    a = s1params_a
-    b = s1params_b
-    c = s1params_c
-    return (a ** (x-b)) + c
-
-def g_true_l2(x):
-    """
-    generative function for light sensor 1
-    """
-    a = s2params_a
-    b = s2params_b
-    c = s2params_c
-    return (a ** (x-b)) + c
-
-def g_true_deriv_l1(x):
-    a = s1params_a
-    b = s1params_b
-    return (x-b) * (a**(x-b-1))
-
-def g_true_deriv_l2(x):
-    a = s2params_a
-    b = s2params_b
-    return (x-b) * (a**(x-b-1))
-
-
-def write_results_to_json(filename, phi, phi_u ,v ,u):
-    """
-    Using json write the dictionary to a json file
-    """
-    data = {'phi':phi, 'phi_u':phi_u, 'v':v, 'u':u} 
-    with open(filename, 'w') as outfile:
-        json.dump(data, outfile)
-
-
-def drive_motors(distance):
-    movediff = MoveDifferential(OUTPUT_A, OUTPUT_C, EV3EducationSetTire, 10 * 8)
-    movediff.on_for_distance(SpeedRPM(20), distance)
-
-
-"""
-calc mean variance from the recordings
-"""
-data = read_data_from_file_json('data_out.json')
-
-s1_variance = sum(data['s1']['variances'])/len(data['s1']['variances'])
-s2_variance = sum(data['s2']['variances'])/len(data['s2']['variances'])
-
-print("variances s1:", s1_variance, "s2:", s2_variance)
-
-"""
-read params from file
-"""
-params = read_data_from_file_json('genmap_params.json')
-
-#assign params to globals
-s1params_a, s1params_b, s1params_c = params['s1']['a'], params['s1']['b'], params['s1']['c']
-s2params_a, s2params_b, s2params_c = params['s2']['a'], params['s2']['b'], params['s2']['c']
-
-"""
-initialise sensors
-"""
-l_sensor1 = ColorSensor(INPUT_1)
-l_sensor2 = ColorSensor(INPUT_3)
-
-#hyperparams
-N = 1000
-dt = 0.0001
-dt = 0.00000001
-V = 60 #true hidden state (dist)
-V_p = 0 #prior
-
-"""
-run the robots inference program
-"""
-phi, phi_u, v, u = run(N, dt, V, V_p, 1, [s1_variance, s2_variance], [l_sensor1, l_sensor2])
-print("final predic", phi[len(phi)-1])
-
-"""
-write out the results to file
-"""
-dataa = {'phi':phi.tolist()} 
-with open('phi2sensor.json', 'w') as outfile:
-    json.dump(dataa, outfile)
-#write_results_to_csv('inference2.csv', phi, phi_u[0], phi_u[1],v, u) #write results out to csv file
-print(phi, phi_u)

@@ -13,7 +13,7 @@ class robot_brain:
     """
     This class deals with the neuronal working of the robots brain state(s)
     """
-    def __init__(self, dt, V_p, Sigma_p, Sigma_u):
+    def __init__(self, dt, V_p, Sigma_p, Sigma_u, g_params):
         self.dt = dt
         self.phi = V_p #phi is the current best guess, we initialise it to the "hierachical prior"
 
@@ -23,13 +23,32 @@ class robot_brain:
         self.Sigma_u = Sigma_u #variance of sensory input
         
         self.F = 0 #Free energy!
+
+        #parameters for true gen function
+        self.s1params_a = g_params[0]
+        self.s1params_b = g_params[1]
+        self.s1params_c = g_params[2]
     
     def g(self, phi):
         #generative model
-        return g_true(phi)
+        return self.g_true_l1(phi)
     
     def g_deriv(self, phi):
-        return g_true_deriv(phi)
+        return self.g_true_deriv_l1(phi)
+
+    def g_true_l1(self, x):
+        """
+        generative function for light sensor 1
+        """
+        a = self.s1params_a
+        b = self.s1params_b
+        c = self.s1params_c
+        return (a ** (x-b)) + c
+
+    def g_true_deriv_l1(self, x):
+        a = self.s1params_a
+        b = self.s1params_b
+        return (x-b) * (a**(x-b-1))
 
 
     def calc_free_energy(self, V_p, u):
@@ -42,7 +61,7 @@ class robot_brain:
         #recalculate prediction errors because prediction of hidden state might have been updated
         e_p = (self.phi - V_p)
         e_u = (u - self.g(self.phi))
-        F = (e_u**2 / self.Sigma_u + e_u**2 + self.Sigma_p + np.log(self.Sigma_p * Sigma_u)) / 2
+        F = (e_u**2 / self.Sigma_u + e_u**2 + self.Sigma_p + np.log(self.Sigma_p * self.Sigma_u)) / 2
         return F
 
     def inference(self, V_p, u):
@@ -53,7 +72,7 @@ class robot_brain:
         """
 
         lr = 1
-
+        dt = self.dt
         #page 4 of bogacz for the maths
 
         #Prediction errors
@@ -76,7 +95,7 @@ class robot_brain:
         return self.phi, phi_u
 
 
-def run(N, dt, V, V_p, Sigma_p, Sigma_u, l_sensor):
+def run(N, dt, V, V_p, Sigma_p, Sigma_u, l_sensor, g_params):
     """
     iterate the robot brain through time
     N- Number of steps to simulate
@@ -87,7 +106,7 @@ def run(N, dt, V, V_p, Sigma_p, Sigma_u, l_sensor):
     l_sensor - light sensor object
     """
 
-    robot = robot_brain(dt, V_p, Sigma_p, Sigma_u)
+    robot = robot_brain(dt, V_p, Sigma_p, Sigma_u, g_params)
 
     #inititalise arrays for recording results
     phi = np.zeros(N)
@@ -108,85 +127,3 @@ def run(N, dt, V, V_p, Sigma_p, Sigma_u, l_sensor):
     
     #print("light readings", u)
     return phi, phi_u, v , u
-
-
-def read_data_from_file_json(filename):
-    with open(filename) as json_file:
-        data = json.load(json_file)
-    return data
-
-def drive_motors(distance):
-    movediff = MoveDifferential(OUTPUT_A, OUTPUT_C, EV3EducationSetTire, 10 * 8)
-    movediff.on_for_distance(SpeedRPM(20), distance)
-
-
-def g_true(x):
-    a = s1params_a
-    b = s1params_b
-    c = s1params_c
-    return (a ** (x-b)) + c
-
-def g_true_deriv(x):
-    a = s1params_a
-    b = s1params_b
-    return (x-b) * (a**(x-b-1))
-
-
-"""
-calc mean variance from the recordings
-"""
-data = read_data_from_file_json('data_out.json')
-
-s1_variance = sum(data['s1']['variances'])/len(data['s1']['variances'])
-print("variances s1:", s1_variance)
-"""
-read params from file
-"""
-params = read_data_from_file_json('genmap_params.json')
-
-#assign params to globals
-s1params_a, s1params_b, s1params_c = params['s1']['a'], params['s1']['b'], params['s1']['c']
-
-"""
-initialise sensors
-"""
-l_sensor1 = ColorSensor(INPUT_1)
-
-#hyperparams
-N = 100
-dt = 0.0025
-dt = 0.000001
-V = 60 #true hidden state (dist)
-V_p = 0 #prior
-
-"""
-run the robots inference program
-
-phi, phi_u, v, u = run(N, dt, V, V_p, 1, s1_variance, l_sensor1)
-print("final predic", phi[len(phi)-1])
-"""
-
-#write out the results to file
-"""
-dataa = {'phi':phi.tolist()} 
-with open('phi1sensor.json', 'w') as outfile:
-    json.dump(dataa, outfile)
-#write_results_to_csv('inference2.csv', phi, phi_u[0], phi_u[1],v, u) #write results out to csv file
-print(phi, phi_u)
-
-"""
-
-
-dist_intervals = np.arange(10, 20, 5)
-predictions = {}
-for dist in dist_intervals:
-    phi, phi_u, v, u = run(N, dt, V, V_p, 1, s1_variance, l_sensor1)
-    print("prediction:", phi[len(phi)-1], "at", dist, "cm")
-    predictions[str(dist)] = phi.tolist()
-    drive_motors(-50)
-
-drive_motors(1000)
-
-with open('phi1sensor.json', 'w') as outfile:
-    json.dump(predictions, outfile)
-

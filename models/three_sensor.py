@@ -9,11 +9,12 @@ from ev3dev2.motor import OUTPUT_A, OUTPUT_C, MoveDifferential, SpeedRPM
 from ev3dev2.wheel import EV3EducationSetTire
 
 
+
 class robot_brain:
     """
     This class deals with the neuronal working of the robots brain state(s)
     """
-    def __init__(self, dt, V_p, Sigma_p, Sigma_u):
+    def __init__(self, dt, V_p, Sigma_p, Sigma_u, g_params):
         self.dt = dt
         self.phi = V_p #phi is the current best guess, we initialise it to the "hierachical prior"
 
@@ -25,23 +26,76 @@ class robot_brain:
         self.Sigma_u = Sigma_u #variance of sensory input
         
         self.F = 0 #Free energy!
+
+        self.s1params_a = g_params[0]
+        self.s1params_b = g_params[1]
+        self.s1params_c = g_params[2]
+        
+        self.s2params_a = g_params[3]
+        self.s2params_b = g_params[4]
+        self.s2params_c = g_params[5]
+
+        self.s3params_a = g_params[6]
+        self.s3params_b = g_params[7]
+
     
     def g(self, phi, sensor_num):
         #generative model
         if sensor_num == 0:
-            return g_true_l1(phi)
+            return self.g_true_l1(phi)
         elif sensor_num == 1:
-            return g_true_l2(phi)
+            return self.g_true_l2(phi)
         elif sensor_num == 2:
-            return g_true_l3(phi)
+            return self.g_true_l3(phi)
     
     def g_deriv(self, phi, sensor_num):
         if sensor_num == 0:
-            return g_true_deriv_l1(phi)
+            return self.g_true_deriv_l1(phi)
         elif sensor_num == 1:
-            return g_true_deriv_l2(phi)
+            return self.g_true_deriv_l2(phi)
         elif sensor_num == 2:
-            return g_true_deriv_l3(phi)
+            return self.g_true_deriv_l3(phi)
+
+    
+    def g_true_l1(self, x):
+        """
+        generative function for light sensor 1
+        """
+        a = self.s1params_a
+        b = self.s1params_b
+        c = self.s1params_c
+        return (a ** (x-b)) + c
+
+    def g_true_l2(self, x):
+        """
+        generative function for light sensor 3
+        """
+        a = self.s2params_a
+        b = self.s2params_b
+        c = self.s2params_c
+        return (a ** (x-b)) + c
+
+    def g_true_l3(self, x):
+        """
+        generative function for light sensor 3
+        """
+        a = self.s3params_a
+        b = self.s3params_b
+        return (a*x) + b
+
+    def g_true_deriv_l1(self, x):
+        a = self.s1params_a
+        b = self.s1params_b
+        return (x-b) * (a**(x-b-1))
+
+    def g_true_deriv_l2(self, x):
+        a = self.s2params_a
+        b = self.s2params_b
+        return (x-b) * (a**(x-b-1))
+
+    def g_true_deriv_l3(self, x):
+        a = self.s3params_a
+        return a
 
 
     def calc_free_energy(self, V_p, u):
@@ -63,6 +117,8 @@ class robot_brain:
         mu_p - prior guess of hidden state
         u - sensory input
         """
+
+        dt = self.dt#compact things
 
         #page 4 of bogacz for the maths
 
@@ -106,7 +162,7 @@ class robot_brain:
         return self.phi, phi_u
 
 
-def run(N, dt, V, V_p, Sigma_p, Sigma_u, sensors):
+def run(N, dt, V, V_p, Sigma_p, Sigma_u, sensors, g_params):
     """
     iterate the robot brain through time
     N- Number of steps to simulate
@@ -117,7 +173,7 @@ def run(N, dt, V, V_p, Sigma_p, Sigma_u, sensors):
     l_sensor - light sensor object
     """
 
-    robot = robot_brain(dt, V_p, Sigma_p, Sigma_u)
+    robot = robot_brain(dt, V_p, Sigma_p, Sigma_u, g_params)
     SENSOR_NUM = len(sensors)#2
     #inititalise arrays for recording results
     phi = np.zeros(N)
@@ -139,133 +195,3 @@ def run(N, dt, V, V_p, Sigma_p, Sigma_u, sensors):
         print('Epoch \r',i+1, '/', N, end="")
     #print("light readings", u)
     return phi, phi_u, v , u
-
-def g_true_l1(x):
-    """
-    generative function for light sensor 1
-    """
-    a = s1params_a
-    b = s1params_b
-    c = s1params_c
-    return (a ** (x-b)) + c
-
-def g_true_l2(x):
-    """
-    generative function for light sensor 3
-    """
-    a = s2params_a
-    b = s2params_b
-    c = s2params_c
-    return (a ** (x-b)) + c
-
-def g_true_l3(x):
-    """
-    generative function for light sensor 3
-    """
-    a = s3params_a
-    b = s3params_b
-    return (a*x) + b
-
-def g_true_deriv_l1(x):
-    a = s1params_a
-    b = s1params_b
-    return (x-b) * (a**(x-b-1))
-
-def g_true_deriv_l2(x):
-    a = s2params_a
-    b = s2params_b
-    return (x-b) * (a**(x-b-1))
-
-def g_true_deriv_l3(x):
-    a = s3params_a
-    return a
-
-"""
-def write_results_to_csv(filename, phi, phi_u1, phi_u2 ,v ,u ):
-    data = {'phi':phi, 'phi_u1':phi_u1, 'phi_u2':phi_u2, 'v':v, 'u':u}    
-    df = pd.DataFrame(data)
-    df.to_csv(filename)
-"""
-
-def write_results_to_json(filename, phi, phi_u ,v ,u):
-    """
-    Using json write the dictionary to a json file
-    """
-    data = {'phi':phi, 'phi_u':phi_u, 'v':v, 'u':u} 
-    with open(filename, 'w') as outfile:
-        json.dump(data, outfile)
-
-
-def read_data_from_file_json(filename):
-    with open(filename) as json_file:
-        data = json.load(json_file)
-    return data
-
-def drive_motors(distance):
-    movediff = MoveDifferential(OUTPUT_A, OUTPUT_C, EV3EducationSetTire, 10 * 8)
-    movediff.on_for_distance(SpeedRPM(20), distance)
-
-
-"""
-calc mean variance from the recordings
-"""
-data = read_data_from_file_json('data_out.json')
-
-s1_variance = sum(data['s1']['variances'])/len(data['s1']['variances'])
-s2_variance = sum(data['s2']['variances'])/len(data['s2']['variances'])
-s3_variance = sum(data['s3']['variances'])/len(data['s3']['variances'])
-
-print("variances s1:", s1_variance, "s2:", s2_variance, "s3:", s3_variance)
-
-"""
-read params from file
-"""
-params = read_data_from_file_json('genmap_params.json')
-
-#assign params to globals
-s1params_a, s1params_b, s1params_c = params['s1']['a'], params['s1']['b'], params['s1']['c']
-s2params_a, s2params_b, s2params_c = params['s2']['a'], params['s2']['b'], params['s2']['c']
-s3params_a, s3params_b = params['s3']['a'], params['s3']['b']
-
-"""
-initialise sensors
-"""
-l_sensor1 = ColorSensor(INPUT_1)
-l_sensor2 = ColorSensor(INPUT_3)
-us_sensor = UltrasonicSensor()
-
-#hyperparams
-N = 100
-dt = 0.0001
-dt = 0.00000001
-V = 60 #true hidden state (dist)
-V_p = 0 #prior
-
-"""
-run the robots inference program
-
-phi, phi_u, v, u = run(N, dt, V, V_p, 1, [s1_variance, s2_variance, s3_variance], [l_sensor1, l_sensor2, us_sensor])
-print("final predic", phi[len(phi)-1])
-"""
-
-
-dist_intervals = np.arange(10, 110, 5)
-predictions = {}
-for dist in dist_intervals:
-    phi, phi_u, v, u = run(N, dt, dist, V_p, 1, [s1_variance, s2_variance, s3_variance], [l_sensor1, l_sensor2, us_sensor])
-    print("prediction:", phi[len(phi)-1], "at", dist, "cm")
-    predictions[str(dist)] = phi.tolist()
-    drive_motors(-50)
-
-with open('phi3sensor.json', 'w') as outfile:
-    json.dump(predictions, outfile)
-
-"""
-write out the results to file
-
-dataa = {'phi':phi.tolist()} 
-with open('phi3sensor.json', 'w') as outfile:
-    json.dump(dataa, outfile)
-#write_results_to_csv('inference2.csv', phi, phi_u[0], phi_u[1],v, u) #write results out to csv file
-print(phi, phi_u)
-"""
