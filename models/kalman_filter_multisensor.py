@@ -13,10 +13,11 @@ from scipy.linalg import inv
 
 
 class kalman_filter():
-    def __init__(self, x, P, F, H, R):
+    def __init__(self, x, P, F, Q, H, R):
         self.x = x
         self.P = P
         self.F = F
+        self.Q = Q
         self.H = H
         self.R = R
 
@@ -46,6 +47,9 @@ def make_filter_2sensors(s1_variance, s2_variance, state_variance):
     
     F = np.array([[1., 0],
                   [0., 1.]]) # state transition matrix
+
+    Q = np.array([[1., 0],
+                  [0., 1.]]) # process model covariance
     
     H = np.array([[1., 0.],
                   [1., 0.]]) #  measurement function (converts from prediction to measurement space)
@@ -55,17 +59,23 @@ def make_filter_2sensors(s1_variance, s2_variance, state_variance):
     R[0, 0] = s1_variance ** 2 # set measurement variance for sensor 1 (top left)
     R[1, 1] = s2_variance ** 2 # set measurement variance for sensor 2 (bottom right)
 
-    return kalman_filter(x, P, F, H, R)
+    return kalman_filter(x, P, F, Q, H, R)
 
 
 def convert(sensor_variances, lookup_table, x):
     """
     convert using lookup table
     """
-    l_reading = x.round(2)
-    distance = lookup_table['s1'][l_reading]
+    l_reading = int(x) #round to int for now
+
+    dist_s1 = lookup_table['s1'][l_reading]
+    dist_s2 = lookup_table['s2'][l_reading]
+   
+    sv = sensor_variances
     
-    return 0
+    fused_dist = ( (dist_s1 * sv[0]**-1) + (dist_s2 * sv[1]**-1) ) / (sv[0]**-1 + sv[1]**-1)
+
+    return fused_dist
 
 
 def run(N, sensor_variances, sensors, lookup_table):
@@ -85,6 +95,9 @@ def run(N, sensor_variances, sensors, lookup_table):
         kf.update(z)
 
         #save state to look at later
-        x_log[i] = kf.x
+        x_log[i] = kf.x[0][0] # log just the position
+    
+    #convert to distance values using the lookup table
+    x_log_dists = [convert(sensor_variances, lookup_table, x) for x in x_log]
 
-    return x_log
+    return x_log_dists

@@ -120,7 +120,7 @@ with open('genmap_params.json', 'w') as outfile:
 # MAKE LOOKUP TABLE FOR KALMAN FILTER  #
 ########################################
 
-lookup_range = np.arange(0, 100.1, 0.1).round(1)
+lookup_range = np.arange(10, 110, 1) # lookup range for light sensor values
 lookup_table = {'s1': dict.fromkeys(lookup_range), 's2':dict.fromkeys(lookup_range),'s3': dict.fromkeys(lookup_range)}
 for key, value in lookup_table.items():
     for k, v in value.items():
@@ -131,9 +131,16 @@ for key, value in lookup_table.items():
         elif key == 's3':
             lookup_table[key][k] = objective_func_linear(k, s3params_a, s3params_b)
 
+
+# convert key values to string cos of json
+lookup_tablejson = {}
+for k, v in lookup_table.items():
+    lookup_tablejson[k] = {str(key): value for key, value in v.items()}
+print(lookup_tablejson)
+
 #write lookup table as json file out
 with open('lookup_table.json', 'w') as outfile:
-    json.dump(lookup_table, outfile)
+    json.dump(lookup_tablejson, outfile)
 
 
 
