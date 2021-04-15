@@ -72,11 +72,18 @@ def convert(sensor_variances, lookup_table, x):
     dist_s2 = lookup_table['s2'][l_reading]
    
     sv = sensor_variances
-    
+
     fused_dist = ( (dist_s1 * sv[0]**-1) + (dist_s2 * sv[1]**-1) ) / (sv[0]**-1 + sv[1]**-1)
 
     return fused_dist
 
+def look_in_lookup(sensor_key, z, lookup_table):
+    try:
+        lookup_table[sensor_key][round(z)]
+    except KeyError:
+        print("key error", z, "not in table")
+        return 50
+    return lookup_table[sensor_key][round(z)]
 
 def run(N, sensor_variances, sensors, lookup_table):
     
@@ -89,13 +96,17 @@ def run(N, sensor_variances, sensors, lookup_table):
         s1 = sensors[0].ambient_light_intensity
         s2 = sensors[1].ambient_light_intensity
 
-        z = np.array([[s1], [s2]]) # measurement
+        s1_dist = look_in_lookup('s1', s1, lookup_table) # convert to state space (light -> dist)
+        s2_dist = look_in_lookup('s2', s2, lookup_table)
+
+        z = np.array([[s1_dist], [s2_dist]]) # measurement
 
         kf.predict()
         kf.update(z)
 
         #save state to look at later
         x_log[i] = kf.x[0][0] # log just the position
+        print('Epoch \r',i+1, '/', N, end="")
     
     #convert to distance values using the lookup table
     x_log_dists = [convert(sensor_variances, lookup_table, x) for x in x_log]

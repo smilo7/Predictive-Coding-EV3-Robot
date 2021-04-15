@@ -120,6 +120,7 @@ with open('genmap_params.json', 'w') as outfile:
 # MAKE LOOKUP TABLE FOR KALMAN FILTER  #
 ########################################
 
+"""
 lookup_range = np.arange(10, 110, 1) # lookup range for light sensor values
 lookup_table = {'s1': dict.fromkeys(lookup_range), 's2':dict.fromkeys(lookup_range),'s3': dict.fromkeys(lookup_range)}
 for key, value in lookup_table.items():
@@ -130,12 +131,26 @@ for key, value in lookup_table.items():
             lookup_table[key][k] = objective_func(k, s2params_a, s2params_b, s2params_c)
         elif key == 's3':
             lookup_table[key][k] = objective_func_linear(k, s3params_a, s3params_b)
+"""
 
+def make_lookup():
+    dists = np.arange(0, 111, 1) # dist vals
 
+    #get the sensor values for each possible distance in the range
+    s1_vals = {int(round(objective_func(d, s1params_a, s1params_b, s1params_c))):d for d in dists}
+    s2_vals = {int(round(objective_func(d, s2params_a, s2params_b, s2params_c))):d for d in dists}
+    s3_vals = {int(round(objective_func_linear(d, s3params_a, s3params_b))):d for d in dists}
+
+    table = {'s1': s1_vals, 's2':s2_vals,'s3': s3_vals}
+    return table
+
+            
+lookup_table = make_lookup()
+print(lookup_table)
 # convert key values to string cos of json
 lookup_tablejson = {}
 for k, v in lookup_table.items():
-    lookup_tablejson[k] = {str(key): value for key, value in v.items()}
+    lookup_tablejson[k] = {str(key): str(value) for key, value in v.items()}
 print(lookup_tablejson)
 
 #write lookup table as json file out

@@ -125,7 +125,7 @@ class robot_brain:
         return self.phi, phi_u
 
 
-def run(N, dt, V, V_p, Sigma_p, Sigma_u, l_sensors, g_params):
+def run(N, dt, V, V_p, Sigma_p, Sigma_u, l_sensors, g_params, provided_measurements):
     """
     iterate the robot brain through time
     N- Number of steps to simulate
@@ -150,8 +150,13 @@ def run(N, dt, V, V_p, Sigma_p, Sigma_u, l_sensors, g_params):
 
     for i in range(0, N):
         v[i] = V
-        u[i, 0] = l_sensors[0].ambient_light_intensity #take sensor reading
-        u[i, 1] = l_sensors[1].ambient_light_intensity
+        #use fed in sensor values rather than recording them internally
+        if len(provided_measurements) != 0: 
+            u[i, 0] = provided_measurements[0][i]
+            u[i, 1] = provided_measurements[1][i]
+        else:
+            u[i, 0] = l_sensors[0].ambient_light_intensity #take sensor reading
+            u[i, 1] = l_sensors[1].ambient_light_intensity
 
         #u[i] = g_true(V) #sensory input given as true generative process generating sensory input
         phi[i], phi_u[i] = robot.inference(V_p, u[i]) #do inference at the current timestep with the previous hierachical prior, and current sensory input
