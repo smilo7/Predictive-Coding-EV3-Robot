@@ -82,10 +82,11 @@ class robot_brain:
         V_p - hierachical prior
         u - sensory input
         """
-        #recalculate prediction errors because prediction of hidden state might have been updated
         e_p = (self.phi - V_p)
-        e_u = (u - self.g(self.phi, 0))
-        F = (e_u**2 / self.Sigma_u + e_u**2 + self.Sigma_p + np.log(self.Sigma_p * self.Sigma_u)) / 2
+        #e_u = (u[0] - self.g(self.phi, 0))
+        e_u1 = (u[0] - self.g(self.phi, 0)) * (1/self.Sigma_u[0])
+        e_u2 = (u[1] - self.g(self.phi, 1)) * (1/self.Sigma_u[1])
+        F = (e_p**2 / self.Sigma_p + e_u1**2 + self.Sigma_u[0] + e_u2 +self.Sigma_u[1] + np.log(self.Sigma_p * self.Sigma_u[0] * self.Sigma_u[1]) ) / 2
         return F
 
     def inference(self, V_p, u):
@@ -125,7 +126,7 @@ class robot_brain:
         return self.phi, phi_u
 
 
-def run(N, dt, V, V_p, Sigma_p, Sigma_u, l_sensors, g_params, provided_measurements):
+def run(N, dt, V, V_p, Sigma_p, Sigma_u, l_sensors, g_params, provided_measurements, multisensory):
     """
     iterate the robot brain through time
     N- Number of steps to simulate
@@ -155,8 +156,12 @@ def run(N, dt, V, V_p, Sigma_p, Sigma_u, l_sensors, g_params, provided_measureme
             u[i, 0] = provided_measurements[0][i]
             u[i, 1] = provided_measurements[1][i]
         else:
-            u[i, 0] = l_sensors[0].ambient_light_intensity #take sensor reading
-            u[i, 1] = l_sensors[1].ambient_light_intensity
+            if multisensory:
+                u[i, 0] = l_sensors[0].ambient_light_intensity #take sensor reading
+                u[i, 1] = l_sensors[1].distance_centimeters # take distance measurement rather than light intensity
+            else:
+                u[i, 0] = l_sensors[0].ambient_light_intensity #take sensor reading
+                u[i, 1] = l_sensors[1].ambient_light_intensity
 
         #u[i] = g_true(V) #sensory input given as true generative process generating sensory input
         phi[i], phi_u[i] = robot.inference(V_p, u[i]) #do inference at the current timestep with the previous hierachical prior, and current sensory input

@@ -14,7 +14,7 @@ class robot_brain:
     """
     This class deals with the neuronal working of the robots brain state(s)
     """
-    def __init__(self, dt, V_p, Sigma_p, Sigma_u, g_params):
+    def __init__(self, dt, V_p, Sigma_p, Sigma_u, g_params, learn_variances=False):
         self.dt = dt
         self.phi = V_p #phi is the current best guess, we initialise it to the "hierachical prior"
 
@@ -37,6 +37,8 @@ class robot_brain:
 
         self.s3params_a = g_params[6]
         self.s3params_b = g_params[7]
+
+        self.learn_variances = learn_variances # whether to learn variance values or not
 
     
     def g(self, phi, sensor_num):
@@ -105,12 +107,16 @@ class robot_brain:
         V_p - hierachical prior
         u - sensory input
         """
-        #recalculate prediction errors because prediction of hidden state might have been updated
         e_p = (self.phi - V_p)
-        e_u = (u - self.g(self.phi, 0))
-        F = (e_u**2 / self.Sigma_u + e_u**2 + self.Sigma_p + np.log(self.Sigma_p * self.Sigma_u)) / 2
+        #e_u = (u[0] - self.g(self.phi, 0))
+        
+        e_u1 = (u[0] - self.g(self.phi, 0)) * (1/self.Sigma_u[0])
+        e_u2 = (u[1] - self.g(self.phi, 1)) * (1/self.Sigma_u[1])
+        e_u3 = (u[2] - self.g(self.phi, 2)) * (1/self.Sigma_u[2])
+        F = (e_p**2 / self.Sigma_p + e_u1**2 + self.Sigma_u[0] + e_u2**2 +self.Sigma_u[1] + e_u3**2 +self.Sigma_u[2] 
+        + np.log(self.Sigma_p * self.Sigma_u[0] * self.Sigma_u[1] * self.Sigma_u[2]) ) / 2
         return F
-
+        
     def inference(self, V_p, u):
         """
         #i - timestep
@@ -150,6 +156,12 @@ class robot_brain:
         + e_u3 * self.g_deriv(self.phi, 2) 
         )
 
+        if self.learn_variances:
+            lr_sigmas = 0.001
+            self.Sigma_u[0] = self.Sigma_u[0] + dt * lr_sigmas * 0.5 *(e_u1**2 - (1/self.Sigma_u[0]))
+            self.Sigma_u[1] = self.Sigma_u[1] + dt * lr_sigmas * 0.5 *(e_u2**2 - (1/self.Sigma_u[1]))
+            self.Sigma_u[2] = self.Sigma_u[2] + dt * lr_sigmas * 0.5 *(e_u2**2 - (1/self.Sigma_u[2]))
+
         #self.F = self.calc_free_energy(u)
 
         """
@@ -162,7 +174,7 @@ class robot_brain:
         return self.phi, phi_u
 
 
-def run(N, dt, V, V_p, Sigma_p, Sigma_u, sensors, g_params, provided_measurements):
+def run(N, dt, V, V_p, Sigma_p, Sigma_u, sensors, g_params, provided_measurements, learn_variances=False):
     """
     iterate the robot brain through time
     N- Number of steps to simulate
@@ -173,7 +185,7 @@ def run(N, dt, V, V_p, Sigma_p, Sigma_u, sensors, g_params, provided_measurement
     l_sensor - light sensor object
     """
 
-    robot = robot_brain(dt, V_p, Sigma_p, Sigma_u, g_params)
+    robot = robot_brain(dt, V_p, Sigma_p, Sigma_u, g_params, learn_variances)
     SENSOR_NUM = len(sensors)#2
     #inititalise arrays for recording results
     phi = np.zeros(N)

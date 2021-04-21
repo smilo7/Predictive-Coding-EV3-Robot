@@ -112,11 +112,18 @@ for dist in dist_intervals:
     phi1, phi_u1, v1, u1 = run1(N, dt_s1, V, V_p, 1, s1_variance, l_sensor1, g_params[:3], provided_measurements)
     print(" prediction 1 sensor:", phi1[len(phi1)-1], "at", dist, "cm")
 
-    phi2, phi_u2, v2, u2 = run2(N, dt, V, V_p, 1, [s1_variance, s2_variance], [l_sensor1, l_sensor2], g_params[:6], provided_measurements)
+    phi2, phi_u2, v2, u2 = run2(N, dt, V, V_p, 1, [s1_variance, s2_variance], [l_sensor1, l_sensor2], g_params[:6], provided_measurements, False)
     print(" prediction 2 sensor:", phi2[len(phi2)-1], "at", dist, "cm")
+
+    # multi sensory
+    phi_2_multi, phi_u2_multi, v2_multi, u2_multi = run2(N, dt, V, V_p, 1, [s1_variance, s2_variance], [l_sensor1, l_sensor3, g_params[:6], provided_measurements, True)
+    print(" prediction 2 multi sensor:", phi2[len(phi2)-1], "at", dist, "cm")
 
     phi3, phi_u3, v3, u3 = run3(N, dt, dist, V_p, 1, [s1_variance, s2_variance, s3_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements)
     print(" prediction 3 sensor:", phi3[len(phi3)-1], "at", dist, "cm")
+
+    phi_3_lrvars, phi_u3_lrvars, v3_lrvars, u3_lrvars = run3(N, dt, dist, V_p, 1, [s1_variance, s2_variance, s3_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements)
+    print(" prediction 3 sensor learning variances:", phi3[len(phi3)-1], "at", dist, "cm")
     
     phi_ukf, u_ukf = run_ukf(N, [s1_variance, s2_variance, s3_variance],  [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements)
     print(" prediction k filter:", phi_ukf[len(phi_ukf)-1], "at", dist, "cm")
@@ -129,14 +136,16 @@ for dist in dist_intervals:
     predictions['s1'][str(dist)] = phi1.tolist()
     predictions['s2'][str(dist)] = phi2.tolist()
     predictions['s3'][str(dist)] = phi3.tolist()
+    predictions['s2_multi'][str(dist)] = phi_2_multi.tolist()
+    predictions['s3_lr'][str(dist)] = phi_3_lrvars.tolist()
     predictions['kf2'][str(dist)] = phi_ukf.tolist()
 
     drive_motors(-50)
 
-with open('phicombined_with_kalman_new3.json', 'w') as outfile:
+with open('phicombined_with_kalman_new7.json', 'w') as outfile:
     json.dump(predictions, outfile)
 
-with open("sensor_readings_3.csv", "w", newline="") as f:
+with open("sensor_readings_7.csv", "w", newline="") as f:
     writer = csv.writer(f)
     writer.writerows(measurement_log)
 
