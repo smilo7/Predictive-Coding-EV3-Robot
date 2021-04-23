@@ -85,7 +85,7 @@ def run(N, sensor_variances, sensors, g_params, provided_measurements):
     phi = np.zeros(N) #distance predictions
     u = np.zeros((N, SENSOR_NUM))
 
-
+    time_log =  np.zeros(N)
     for i in range(0, N):
         #use fed in sensor values rather than recording them internally
         if len(provided_measurements) != 0: 
@@ -99,10 +99,21 @@ def run(N, sensor_variances, sensors, g_params, provided_measurements):
         
         z = [u[i, 0], u[i, 1], u[i, 2]]
 
+        start_time =  time.time()
         w_ukf.ukf.predict()
         w_ukf.ukf.update(z)
+        end_time = time.time()
+        elapsed = end_time - start_time
+        time_log[i] = elapsed
         
 
         phi[i] = w_ukf.ukf.x[0]
         print('Epoch \r',i+1, '/', N, end="")
-    return phi, u
+
+
+    logs = {
+        'phi':phi,
+        'u': u,
+        'time':time_log
+    }
+    return logs

@@ -70,7 +70,7 @@ class robot_brain:
 
     def g_true_l2(self, x):
         """
-        generative function for light sensor 3
+        generative function for light sensor 2
         """
         a = self.s2params_a
         b = self.s2params_b
@@ -79,7 +79,7 @@ class robot_brain:
 
     def g_true_l3(self, x):
         """
-        generative function for light sensor 3
+        generative function for ultrasonic sensor
         """
         a = self.s3params_a
         b = self.s3params_b
@@ -116,7 +116,7 @@ class robot_brain:
         F = (e_p**2 / self.Sigma_p + e_u1**2 + self.Sigma_u[0] + e_u2**2 +self.Sigma_u[1] + e_u3**2 +self.Sigma_u[2] 
         + np.log(self.Sigma_p * self.Sigma_u[0] * self.Sigma_u[1] * self.Sigma_u[2]) ) / 2
         return F
-        
+
     def inference(self, V_p, u):
         """
         #i - timestep
@@ -157,7 +157,7 @@ class robot_brain:
         )
 
         if self.learn_variances:
-            lr_sigmas = 0.001
+            lr_sigmas = 0.0001
             self.Sigma_u[0] = self.Sigma_u[0] + dt * lr_sigmas * 0.5 *(e_u1**2 - (1/self.Sigma_u[0]))
             self.Sigma_u[1] = self.Sigma_u[1] + dt * lr_sigmas * 0.5 *(e_u2**2 - (1/self.Sigma_u[1]))
             self.Sigma_u[2] = self.Sigma_u[2] + dt * lr_sigmas * 0.5 *(e_u2**2 - (1/self.Sigma_u[2]))
@@ -171,6 +171,9 @@ class robot_brain:
             phi_u.append(self.g(self.phi, i)) #sensory_predictions, based on feeding the current prediction of the hideen state to the generative model
         """
         phi_u = 0
+
+
+
         return self.phi, phi_u
 
 
@@ -193,9 +196,9 @@ def run(N, dt, V, V_p, Sigma_p, Sigma_u, sensors, g_params, provided_measurement
     F = np.zeros(N) #free energy
     v = np.zeros(N) # true distance (hidden state)
     u = np.zeros((N, SENSOR_NUM)) #sensory input
-
+    
+    time_log = np.zeros(N)
     #phi[0] = V_p #in
-
     for i in range(0, N):
         v[i] = V
         #use fed in sensor values rather than recording them internally
@@ -209,7 +212,20 @@ def run(N, dt, V, V_p, Sigma_p, Sigma_u, sensors, g_params, provided_measurement
             u[i, 2] = sensors[2].distance_centimeters #us sensor
 
         #u[i] = g_true(V) #sensory input given as true generative process generating sensory input
+        start_time = time.time()
         phi[i], phi_u[i] = robot.inference(V_p, u[i]) #do inference at the current timestep with the previous hierachical prior, and current sensory input
+        end_time = time.time()
+        elapsed = end_time - start_time
+        time_log[i] = elapsed
         print('Epoch \r',i+1, '/', N, end="")
-    #print("light readings", u)
-    return phi, phi_u, v , u
+
+    logs = {
+        'phi':phi,
+        'phi_u':phi_u,
+        'F': F,
+        'v': v,
+        'u': u,
+        'time':time_log
+    }
+
+    return logs

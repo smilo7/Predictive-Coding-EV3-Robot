@@ -74,8 +74,8 @@ DISTANCE INTERVALS
 CHANGE IF NEEDED
 !!!
 """
-distances = np.arange(10, 110, 5) #distance intervals
-
+distances = np.arange(10, 115, 5) #distance intervals
+#distances = np.arange(20, 85, 5)
 
 s1_means = data['s1']['means'] #means sensor 1 light sensor 1
 s2_means = data['s2']['means'] #light sesnor 2

@@ -115,8 +115,8 @@ def run(N, dt, V, V_p, Sigma_p, Sigma_u, l_sensor, g_params, provided_measuremen
     v = np.zeros(N) # true distance (hidden state)
     u = np.zeros(N) #sensory input
 
+    time_log =  np.zeros(N)
     #phi[0] = V_p #in
-
     for i in range(0, N):
         v[i] = V
         #use fed in sensor values rather than recording them internally
@@ -126,8 +126,20 @@ def run(N, dt, V, V_p, Sigma_p, Sigma_u, l_sensor, g_params, provided_measuremen
             u[i] = l_sensor.ambient_light_intensity #take sensor reading
         
         #u[i] = g_true(V) #sensory input given as true generative process generating sensory input
+        start_time = time.time()
         phi[i], phi_u[i] = robot.inference(V_p, u[i]) #do inference at the current timestep with the previous hierachical prior, and current sensory input
+        end_time = time.time()
+        elapsed = end_time - start_time
+        time_log[i] = elapsed
         print('Epoch \r',i+1, '/', N, end="")
-    
+
+    logs = {
+        'phi':phi,
+        'phi_u':phi_u,
+        'F': F,
+        'v': v,
+        'u': u,
+        'time':time_log
+    }
     #print("light readings", u)
-    return phi, phi_u, v , u
+    return logs

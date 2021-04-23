@@ -122,9 +122,14 @@ NUM_INTERVALS = (20) #numebr of distance intervals 150cm / 20
 
 data_out = {'s1':{'means':[], 'variances':[]}, 's2':{'means':[], 'variances':[]}, 's3':{'means':[], 'variances':[]}}
 
-for i in range(0, NUM_INTERVALS):
+
+dist_intervals = np.arange(10, 115, 5)
+#dist_intervals = np.arange(20, 85, 5)
+
+#for i in range(0, NUM_INTERVALS):
+for i, dist in enumerate(dist_intervals):
     #l_levels = get_l_levels()
-    print(i, "out of", NUM_INTERVALS)
+    print(i, "out of", len(dist_intervals))
     l_levels = record_light(1000)
     #print(l_levels)
     data_out['s1']['means'].append(calc_mean(l_levels[0]))
@@ -139,8 +144,8 @@ for i in range(0, NUM_INTERVALS):
     time.sleep(0.1)
 
 #back to begining
-time.sleep(1)
-drive_motors(500)
+#time.sleep(1)
+#drive_motors(500)
 #drive_motors(-50*-NUM_INTERVALS)
 
 print(data_out)

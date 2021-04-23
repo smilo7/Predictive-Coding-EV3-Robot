@@ -13,7 +13,7 @@ class robot_brain:
     """
     This class deals with the neuronal working of the robots brain state(s)
     """
-    def __init__(self, dt, V_p, Sigma_p, Sigma_u, g_params):
+    def __init__(self, dt, V_p, Sigma_p, Sigma_u, g_params, multisensory):
         self.dt = dt
         self.phi = V_p #phi is the current best guess, we initialise it to the "hierachical prior"
 
@@ -32,19 +32,30 @@ class robot_brain:
         self.s2params_a = g_params[3]
         self.s2params_b = g_params[4]
         self.s2params_c = g_params[5]
+
+        self.s3params_a = g_params[6]
+        self.s3params_b = g_params[7]
+
+        self.multisensory = multisensory
     
     def g(self, phi, sensor_num):
         #generative model
         if sensor_num == 0:
             return self.g_true_l1(phi)
         elif sensor_num ==1:
-            return self.g_true_l2(phi)
+            if self.multisensory:
+                return self.g_true_l3(phi)
+            else:
+                return self.g_true_l2(phi)
     
     def g_deriv(self, phi, sensor_num):
         if sensor_num == 0:
             return self.g_true_deriv_l1(phi)
         elif sensor_num == 1:
-            return self.g_true_deriv_l2(phi)
+            if self.multisensory: # use ultrasonic sensor mapping
+                return self.g_true_deriv_l3(phi)
+            else:
+                return self.g_true_deriv_l2(phi)
 
 
     def g_true_l1(self, x):
@@ -65,6 +76,14 @@ class robot_brain:
         c = self.s2params_c
         return (a ** (x-b)) + c
 
+    def g_true_l3(self, x):
+        """
+        generative function for light sensor 3
+        """
+        a = self.s3params_a
+        b = self.s3params_b
+        return (a*x) + b
+
     def g_true_deriv_l1(self, x):
         a = self.s1params_a
         b = self.s1params_b
@@ -74,6 +93,11 @@ class robot_brain:
         a = self.s2params_a
         b = self.s2params_b
         return (x-b) * (a**(x-b-1))
+
+    #ultrasonic sensor gmap for multisensory option
+    def g_true_deriv_l3(self, x):
+        a = self.s3params_a
+        return a
 
     def calc_free_energy(self, V_p, u):
         """
@@ -137,7 +161,7 @@ def run(N, dt, V, V_p, Sigma_p, Sigma_u, l_sensors, g_params, provided_measureme
     l_sensor - light sensor object
     """
 
-    robot = robot_brain(dt, V_p, Sigma_p, Sigma_u, g_params)
+    robot = robot_brain(dt, V_p, Sigma_p, Sigma_u, g_params, multisensory=multisensory)
 
     SENSOR_NUM = len(l_sensors)#2
     #inititalise arrays for recording results
@@ -147,8 +171,8 @@ def run(N, dt, V, V_p, Sigma_p, Sigma_u, l_sensors, g_params, provided_measureme
     v = np.zeros(N) # true distance (hidden state)
     u = np.zeros((N, SENSOR_NUM)) #sensory input
 
+    time_log = np.zeros(N)
     #phi[0] = V_p #in
-
     for i in range(0, N):
         v[i] = V
         #use fed in sensor values rather than recording them internally
@@ -164,6 +188,23 @@ def run(N, dt, V, V_p, Sigma_p, Sigma_u, l_sensors, g_params, provided_measureme
                 u[i, 1] = l_sensors[1].ambient_light_intensity
 
         #u[i] = g_true(V) #sensory input given as true generative process generating sensory input
-        phi[i], phi_u[i] = robot.inference(V_p, u[i]) #do inference at the current timestep with the previous hierachical prior, and current sensory input
+        
+        start_time = time.time()
+        phi[i], phi_u[i] = robot.inference(V_p, u[i])#do inference at the current timestep with the previous hierachical prior, and current sensory input
+        end_time = time.time()
+        elapsed = end_time - start_time
+        time_log[i]= elapsed
         print('Epoch \r',i+1, '/', N, end="")
-    return phi, phi_u, v , u
+
+    
+    
+    logs = {
+        'phi':phi,
+        'phi_u':phi_u,
+        'F': F,
+        'v': v,
+        'u': u,
+        'time':time_log
+    }
+
+    return logs
