@@ -103,7 +103,7 @@ dt = 0.000001
 dt_s1 = 0.000001
 V = 60 #true hidden state (dist)
 V_p = 0 #prior
-
+#dt = 0.00001
 # whether to giev the same measurements to each 
 # robot_brain/filter or have them do it internally
 measurements_together = True
@@ -134,7 +134,7 @@ for dist in dist_intervals:
     #if measurements_together:
     #    print('measurements', provided_measurements)
 
-    logs_1 = run1(N, dt_s1, V, V_p, 1, s1_variance, l_sensor1, g_params[:3], provided_measurements)    
+    logs_1 = run1(N, dt, V, V_p, 1, s1_variance, l_sensor1, g_params[:3], provided_measurements)    
     print_prediction(logs_1['phi'], dist, '1 sensor')
 
     logs_2 = run2(N, dt, V, V_p, 1, [s1_variance, s2_variance], [l_sensor1, l_sensor2], g_params[:], provided_measurements, multisensory=False)
@@ -168,7 +168,7 @@ for dist in dist_intervals:
 
     drive_motors(-50)
 
-with open('phicombined_with_kalman_1000iter.json', 'w') as outfile:
+with open('phicombined_with_kalman_100iter10.json', 'w') as outfile:
     json.dump(predictions, outfile)
 
 with open("sensor_readings_7.csv", "w", newline="") as f:
