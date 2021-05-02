@@ -14,7 +14,7 @@ class robot_brain:
     """
     This class deals with the neuronal working of the robots brain state(s)
     """
-    def __init__(self, dt, V_p, Sigma_p, Sigma_u, g_params, learn_variances=False):
+    def __init__(self, dt, V_p, Sigma_p, Sigma_u, g_params, learn_variances=False, lr_sigmas=0.001):
         self.dt = dt
         self.phi = V_p #phi is the current best guess, we initialise it to the "hierachical prior"
 
@@ -39,6 +39,7 @@ class robot_brain:
         self.s3params_b = g_params[7]
 
         self.learn_variances = learn_variances # whether to learn variance values or not
+        self.lr_sigmas = lr_sigmas
 
     
     def g(self, phi, sensor_num):
@@ -157,10 +158,10 @@ class robot_brain:
         )
 
         if self.learn_variances:
-            lr_sigmas = 0.0001
-            self.Sigma_u[0] = self.Sigma_u[0] + dt * lr_sigmas * 0.5 *(e_u1**2 - (1/self.Sigma_u[0]))
-            self.Sigma_u[1] = self.Sigma_u[1] + dt * lr_sigmas * 0.5 *(e_u2**2 - (1/self.Sigma_u[1]))
-            self.Sigma_u[2] = self.Sigma_u[2] + dt * lr_sigmas * 0.5 *(e_u2**2 - (1/self.Sigma_u[2]))
+            #lr_sigmas = 0.0001
+            self.Sigma_u[0] = self.Sigma_u[0] + dt * self.lr_sigmas * 0.5 *(e_u1**2 - (1/self.Sigma_u[0]))
+            self.Sigma_u[1] = self.Sigma_u[1] + dt * self.lr_sigmas * 0.5 *(e_u2**2 - (1/self.Sigma_u[1]))
+            self.Sigma_u[2] = self.Sigma_u[2] + dt * self.lr_sigmas * 0.5 *(e_u3**2 - (1/self.Sigma_u[2]))
 
         #self.F = self.calc_free_energy(u)
 
@@ -171,9 +172,7 @@ class robot_brain:
             phi_u.append(self.g(self.phi, i)) #sensory_predictions, based on feeding the current prediction of the hideen state to the generative model
         """
         phi_u = 0
-
-
-
+        
         return self.phi, phi_u
 
 
