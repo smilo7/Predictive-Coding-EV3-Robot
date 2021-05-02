@@ -173,10 +173,10 @@ class robot_brain:
         """
         phi_u = 0
         
-        return self.phi, phi_u
+        return self.phi, phi_u, self.Sigma_u
 
 
-def run(N, dt, V, V_p, Sigma_p, Sigma_u, sensors, g_params, provided_measurements, learn_variances=False):
+def run(N, dt, V, V_p, Sigma_p, Sigma_u, sensors, g_params, provided_measurements, learn_variances=False, lr_sigmas=0.001):
     """
     iterate the robot brain through time
     N- Number of steps to simulate
@@ -187,7 +187,7 @@ def run(N, dt, V, V_p, Sigma_p, Sigma_u, sensors, g_params, provided_measurement
     l_sensor - light sensor object
     """
 
-    robot = robot_brain(dt, V_p, Sigma_p, Sigma_u, g_params, learn_variances)
+    robot = robot_brain(dt, V_p, Sigma_p, Sigma_u, g_params, learn_variances, lr_sigmas)
     SENSOR_NUM = len(sensors)#2
     #inititalise arrays for recording results
     phi = np.zeros(N)
@@ -195,6 +195,7 @@ def run(N, dt, V, V_p, Sigma_p, Sigma_u, sensors, g_params, provided_measurement
     F = np.zeros(N) #free energy
     v = np.zeros(N) # true distance (hidden state)
     u = np.zeros((N, SENSOR_NUM)) #sensory input
+    Sigma_u = np.zeros((N, SENSOR_NUM))
     
     time_log = np.zeros(N)
     #phi[0] = V_p #in
@@ -212,7 +213,7 @@ def run(N, dt, V, V_p, Sigma_p, Sigma_u, sensors, g_params, provided_measurement
 
         #u[i] = g_true(V) #sensory input given as true generative process generating sensory input
         start_time = time.time()
-        phi[i], phi_u[i] = robot.inference(V_p, u[i]) #do inference at the current timestep with the previous hierachical prior, and current sensory input
+        phi[i], phi_u[i], Sigma_u[i] = robot.inference(V_p, u[i]) #do inference at the current timestep with the previous hierachical prior, and current sensory input
         end_time = time.time()
         elapsed = end_time - start_time
         time_log[i] = elapsed
@@ -224,7 +225,8 @@ def run(N, dt, V, V_p, Sigma_p, Sigma_u, sensors, g_params, provided_measurement
         'F': F,
         'v': v,
         'u': u,
-        'time':time_log
+        'time':time_log,
+        'Sigma_u':Sigma_u
     }
 
     return logs

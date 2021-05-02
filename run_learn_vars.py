@@ -105,12 +105,12 @@ V = 60 #true hidden state (dist)
 V_p = 0 #prior
 
 # variance values
-s1_start_variance = 0.1
-s2_start_variance = 0.1
-s3_start_variance = 0.1
+s1_start_variance = 0.5
+s2_start_variance = 0.5
+s3_start_variance = 0.5
 
 # variance learning rate
-lr_sigmas = 0.001
+lr_sigmas = [0.1, 0.01, 0.001, 0.0001]
 
 # whether to giev the same measurements to each 
 # robot_brain/filter or have them do it internally
@@ -121,7 +121,7 @@ measurement_log = []
 #dist_intervals = np.arange(10, 115, 5)
 #dist_intervals = np.arange(20, 85, 5)
 
-predictions = {'s3_learning_0.1':{} , 's2':{}, 's3':{}, 'kf2':{}, 's2_multi':{}, 's3_learning':{}}
+predictions = {'s3_learning':{} , 's3':{}, 's3_bad_start':{}}
 
 
 # we can test just one distance
@@ -146,20 +146,30 @@ measurement_log.append(provided_measurements)
 logs_3 = run3(N, dt, dist, V_p, 1, [s1_variance, s2_variance, s3_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements)
 print_prediction(logs_3['phi'], dist, '3 sensor')
 
-logs_3learning = run3(N, dt, dist, V_p, 1, [s1_start_variance, s2_start_variance, s3_start_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements, learn_variances=True, lr_sigmas=lr_sigmas)
-print_prediction(logs_3learning['phi'], dist, '3 sensor with learning')
+logs_3_bad_start = run3(N, dt, dist, V_p, 1, [s2_start_variance, s2_start_variance, s2_start_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements)
+print_prediction(logs_3['phi'], dist, '3 sensor bad start')
 
-logs_3learning = run3(N, dt, dist, V_p, 1, [s1_start_variance, s2_start_variance, s3_start_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements, learn_variances=True, lr_sigmas=lr_sigmas)
-print_prediction(logs_3learning['phi'], dist, '3 sensor with learning')
+#logs_3learning = run3(N, dt, dist, V_p, 1, [s1_start_variance, s2_start_variance, s3_start_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements, learn_variances=True, lr_sigmas=lr_sigmas[0])
+#print_prediction(logs_3learning['phi'], dist, '3 sensor with learning')
 
-logs_ukf = run_ukf(N, [s1_variance, s2_variance, s3_variance],  [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements)
-print_prediction(logs_ukf['phi'], dist, 'UKF')
+logs_3learning = run3(N, dt, dist, V_p, 1, [s1_start_variance, s2_start_variance, s3_start_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements, learn_variances=True, lr_sigmas=lr_sigmas[1])
+print_prediction(logs_3learning['phi'], dist, '3 sensor with learning')
+print(logs_3learning['Sigma_u'], dist, '3 sensor with learning')
+
+#logs_3_learning = run3(N, dt, dist, V_p, 1, [s1_start_variance, s2_start_variance, s3_start_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements, learn_variances=True, lr_sigmas=lr_sigmas[2])
+#print_prediction(logs_3learning['phi'], dist, '3 sensor with learning')
+
+#ogs_3learning = run3(N, dt, dist, V_p, 1, [s1_start_variance, s2_start_variance, s3_start_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements, learn_variances=True, lr_sigmas=lr_sigmas)
+#print_prediction(logs_3learning['phi'], dist, '3 sensor with learning')
+
+#logs_ukf = run_ukf(N, [s1_variance, s2_variance, s3_variance],  [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements)
+#print_prediction(logs_ukf['phi'], dist, 'UKF')
 
 print("\n")
 
 
 predictions['s3'][str(dist)] = logs_3['phi'].tolist()
-predictions['kf2'][str(dist)] = logs_ukf['phi'].tolist()
+#predictions['kf2'][str(dist)] = logs_ukf['phi'].tolist()
 predictions['s3_learning'][str(dist)] = logs_3learning['phi'].tolist()
 
 
@@ -173,11 +183,8 @@ with open("sensor_readings_7.csv", "w", newline="") as f:
     writer.writerows(measurement_log)
 
 # save full log for luck
-save_log('1sensor', logs_1)
-save_log('2sensor', logs_2)
 save_log('3sensor', logs_3)
-save_log('2sensor_multi', logs_2multisensor)
-save_log('ukf', logs_ukf)
+#save_log('ukf', logs_ukf)
 save_log('3sensor_learning', logs_3learning)
 
 
