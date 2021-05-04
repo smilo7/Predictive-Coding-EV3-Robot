@@ -3,6 +3,7 @@ from models.one_sensor import run as run1
 from models.two_sensor import run as run2
 from models.three_sensor import run as run3
 from models.unscented_KF import run as run_ukf
+from models.three_sensor import robot_brain as robot_brain_reusable
 
 from models.shared_functions import read_data_from_file_json, drive_motors
 
@@ -89,7 +90,17 @@ l_sensor1 = ColorSensor(INPUT_1)
 l_sensor2 = ColorSensor(INPUT_3)
 us_sensor = UltrasonicSensor()
 
-
+def calc_variance(data):
+    """
+    Calculate the variance for a given array of po = s1_means[1:]
+distances = distances[1:]ints
+    input: data (array)
+    return: variance
+    """
+    mean = sum(data) / len(data)
+    deviations = [(x - mean) ** 2 for x in data]
+    variance = sum(deviations) / len(data)
+    return variance
 
 
 ############################
@@ -97,7 +108,7 @@ us_sensor = UltrasonicSensor()
 ############################
 
 #hyperparams
-N = 1000 #number of inference steps
+N = 100 #number of inference steps
 #dt = 0.00000001
 dt = 0.000001
 #dt_s1 = 0.000001
@@ -105,9 +116,10 @@ V = 60 #true hidden state (dist)
 V_p = 0 #prior
 
 # variance values
-s1_start_variance = 0.5
-s2_start_variance = 0.5
-s3_start_variance = 0.5
+s1_start_variance = 1
+s2_start_variance = 1
+s3_start_variance = 1
+
 
 # variance learning rate
 lr_sigmas = [0.1, 0.01, 0.001, 0.0001]
@@ -123,9 +135,10 @@ measurement_log = []
 
 predictions = {'s3_learning':{} , 's3':{}, 's3_bad_start':{}}
 
+#robot_brain_reuse = robot_brain_reusable(dt=dt, V_p=0, Sigma_p=1, Sigma_u=)
 
 # we can test just one distance
-dist = 50 #cm
+dist = 60 #cm
 
 
 print("begin\n---------")
@@ -143,16 +156,22 @@ if measurements_together:
 
 measurement_log.append(provided_measurements)
 
+
+#calcualte the variance of the sensory readings of this instance
+print('s1 variance', calc_variance(provided_measurements[0]))
+print('s2 variance', calc_variance(provided_measurements[1]))
+print('s3 variance', calc_variance(provided_measurements[2]))
+
 logs_3 = run3(N, dt, dist, V_p, 1, [s1_variance, s2_variance, s3_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements)
 print_prediction(logs_3['phi'], dist, '3 sensor')
 
 logs_3_bad_start = run3(N, dt, dist, V_p, 1, [s2_start_variance, s2_start_variance, s2_start_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements)
-print_prediction(logs_3['phi'], dist, '3 sensor bad start')
+print_prediction(logs_3_bad_start['phi'], dist, '3 sensor bad start')
 
 #logs_3learning = run3(N, dt, dist, V_p, 1, [s1_start_variance, s2_start_variance, s3_start_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements, learn_variances=True, lr_sigmas=lr_sigmas[0])
 #print_prediction(logs_3learning['phi'], dist, '3 sensor with learning')
 
-logs_3learning = run3(N, dt, dist, V_p, 1, [s1_start_variance, s2_start_variance, s3_start_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements, learn_variances=True, lr_sigmas=lr_sigmas[1])
+logs_3learning = run3(N, dt, dist, V_p, 1, [s1_start_variance, s2_start_variance, s3_start_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements, learn_variances=True, lr_sigmas=0.01)
 print_prediction(logs_3learning['phi'], dist, '3 sensor with learning')
 print(logs_3learning['Sigma_u'], dist, '3 sensor with learning')
 

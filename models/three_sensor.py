@@ -176,7 +176,7 @@ class robot_brain:
         return self.phi, phi_u, self.Sigma_u
 
 
-def run(N, dt, V, V_p, Sigma_p, Sigma_u, sensors, g_params, provided_measurements, learn_variances=False, lr_sigmas=0.001):
+def run(N, dt, V, V_p, Sigma_p, Sigma_u, sensors, g_params, provided_measurements, learn_variances=False, lr_sigmas=0.001, brain=None):
     """
     iterate the robot brain through time
     N- Number of steps to simulate
@@ -186,8 +186,12 @@ def run(N, dt, V, V_p, Sigma_p, Sigma_u, sensors, g_params, provided_measurement
     Sigma_u - estimated variance of the sensory input
     l_sensor - light sensor object
     """
-
+    
     robot = robot_brain(dt, V_p, Sigma_p, Sigma_u, g_params, learn_variances, lr_sigmas)
+
+    if brain != None: #if a brain has been provided then replace it here so it can be reused. 
+        robot = brain
+
     SENSOR_NUM = len(sensors)#2
     #inititalise arrays for recording results
     phi = np.zeros(N)
