@@ -135,12 +135,13 @@ class robot_brain:
         e_u2 = (u[1] - self.g(self.phi, 1)) * (1/self.Sigma_u[1])
         e_u3 = (u[2] - self.g(self.phi, 2)) * (1/self.Sigma_u[2]) #US sensor
 
+        """
         #computation carried out in nodes to compute prediction errors.
         self.eps_p = self.eps_p + dt * (e_p- self.Sigma_p * self.eps_p) # moves towards mean of prior
         self.eps_u1 = self.eps_u1 + dt * (e_u1 - self.Sigma_u[0] * self.eps_u1) # moves according to sensory input
         self.eps_u2 = self.eps_u2 + dt * (e_u2 - self.Sigma_u[1] * self.eps_u2)
         self.eps_u3 = self.eps_u3 + dt * (e_u3 - self.Sigma_u[2] * self.eps_u3)
-
+        """
         """
         self.phi = self.phi + dt * ( 
         - self.eps_p 

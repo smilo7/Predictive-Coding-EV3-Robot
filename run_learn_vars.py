@@ -47,6 +47,9 @@ g_params = [
            ]
 
 
+print(g_params)
+
+
 """
 Read in the lookup table for converting predicted light intensities
 for the kalman filter
@@ -103,12 +106,18 @@ distances = distances[1:]ints
     return variance
 
 
+def get_last(data):
+    """
+    return last value from a list
+    """
+    return data[len(data)-1]
+
 ############################
 #           RUN            #
 ############################
 
 #hyperparams
-N = 100 #number of inference steps
+N = 1000 #number of inference steps
 #dt = 0.00000001
 dt = 0.000001
 #dt_s1 = 0.000001
@@ -122,9 +131,11 @@ s3_start_variance = 1
 
 
 # variance learning rate
-lr_sigmas = [0.1, 0.01, 0.001, 0.0001]
+lr_sigmas = [1, 0.1, 0.01, 0.001, 0.0001, 0.00001]
+learning_rates = {'good_variances':[], 'no_lr_bad_variances':[], 1:[], 0.1:[], 0.01:[], 0.001:[], 0.0001:[], 0.00001:[]} #predictions for each learning rate
+sigma_preds = {'good_variances':[], 'no_lr_bad_variances':[], 1:[], 0.1:[], 0.01:[], 0.001:[], 0.0001:[], 0.00001:[]} # predictions for sigma (sensory variance)
 
-# whether to giev the same measurements to each 
+# whether to give the same measurements to each 
 # robot_brain/filter or have them do it internally
 
 measurements_together = True
@@ -138,61 +149,70 @@ predictions = {'s3_learning':{} , 's3':{}, 's3_bad_start':{}}
 #robot_brain_reuse = robot_brain_reusable(dt=dt, V_p=0, Sigma_p=1, Sigma_u=)
 
 # we can test just one distance
-dist = 60 #cm
+dist = 30 #cm
+trials = 10
+for trial in range(0, trials):
+    print("begin\n---------")
+    #for dist in dist_intervals:
+
+    provided_measurements = []
+    if measurements_together:
+        #                        s1   s2  us
+        provided_measurements = [[], [], []]
+        #get N measurements
+        for i in range(0, N):
+            provided_measurements[0].append(l_sensor1.ambient_light_intensity)
+            provided_measurements[1].append(l_sensor2.ambient_light_intensity)
+            provided_measurements[2].append(us_sensor.distance_centimeters)
+
+    measurement_log.append(provided_measurements)
 
 
-print("begin\n---------")
-#for dist in dist_intervals:
+    #calcualte the variance of the sensory readings of this instance
+    print('s1 variance', calc_variance(provided_measurements[0]))
+    print('s2 variance', calc_variance(provided_measurements[1]))
+    print('s3 variance', calc_variance(provided_measurements[2]))
 
-provided_measurements = []
-if measurements_together:
-    #                        s1   s2  us
-    provided_measurements = [[], [], []]
-    #get N measurements
-    for i in range(0, N):
-        provided_measurements[0].append(l_sensor1.ambient_light_intensity)
-        provided_measurements[1].append(l_sensor2.ambient_light_intensity)
-        provided_measurements[2].append(us_sensor.distance_centimeters)
+    logs_3 = run3(N, dt, dist, V_p, 1, [s1_variance, s2_variance, s3_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements)
+    print_prediction(logs_3['phi'], dist, '3 sensor')
+    #print(sum(logs_3['time']),  'time 3 sensor')
+    learning_rates['good_variances'].append(get_last(logs_3['phi']))
+    sigma_preds['good_variances'].append(get_last(logs_3['Sigma_u']))
 
-measurement_log.append(provided_measurements)
+    # no learning with bad starting variance
+    logs_3_bad_start = run3(N, dt, dist, V_p, 1, [s2_start_variance, s2_start_variance, s2_start_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements)
+    print_prediction(logs_3_bad_start['phi'], dist, '3 sensor bad start')
+    learning_rates['no_lr_bad_variances'].append(get_last(logs_3_bad_start['phi']))
+    sigma_preds['no_lr_bad_variances'].append(get_last(logs_3_bad_start['Sigma_u']))
 
+    #for key, value in learning_rates.items():
+    for key in lr_sigmas:
+        logs_3learning = run3(N, dt, dist, V_p, 1, [s1_start_variance, s2_start_variance, s3_start_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements, learn_variances=True, lr_sigmas=key)
+        
+        #append the last prediction to the relevant learning rate
+        learning_rates[key].append(get_last(logs_3learning['phi']))
+        sigma_preds[key].append(get_last(logs_3learning['Sigma_u'])) # same keys so can stick in this loop
 
-#calcualte the variance of the sensory readings of this instance
-print('s1 variance', calc_variance(provided_measurements[0]))
-print('s2 variance', calc_variance(provided_measurements[1]))
-print('s3 variance', calc_variance(provided_measurements[2]))
-
-logs_3 = run3(N, dt, dist, V_p, 1, [s1_variance, s2_variance, s3_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements)
-print_prediction(logs_3['phi'], dist, '3 sensor')
-
-logs_3_bad_start = run3(N, dt, dist, V_p, 1, [s2_start_variance, s2_start_variance, s2_start_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements)
-print_prediction(logs_3_bad_start['phi'], dist, '3 sensor bad start')
-
-#logs_3learning = run3(N, dt, dist, V_p, 1, [s1_start_variance, s2_start_variance, s3_start_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements, learn_variances=True, lr_sigmas=lr_sigmas[0])
-#print_prediction(logs_3learning['phi'], dist, '3 sensor with learning')
-
-logs_3learning = run3(N, dt, dist, V_p, 1, [s1_start_variance, s2_start_variance, s3_start_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements, learn_variances=True, lr_sigmas=0.01)
-print_prediction(logs_3learning['phi'], dist, '3 sensor with learning')
-print(logs_3learning['Sigma_u'], dist, '3 sensor with learning')
-
-#logs_3_learning = run3(N, dt, dist, V_p, 1, [s1_start_variance, s2_start_variance, s3_start_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements, learn_variances=True, lr_sigmas=lr_sigmas[2])
-#print_prediction(logs_3learning['phi'], dist, '3 sensor with learning')
-
-#ogs_3learning = run3(N, dt, dist, V_p, 1, [s1_start_variance, s2_start_variance, s3_start_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements, learn_variances=True, lr_sigmas=lr_sigmas)
-#print_prediction(logs_3learning['phi'], dist, '3 sensor with learning')
-
-#logs_ukf = run_ukf(N, [s1_variance, s2_variance, s3_variance],  [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements)
-#print_prediction(logs_ukf['phi'], dist, 'UKF')
-
-print("\n")
+        print_prediction(logs_3learning['phi'], dist, '3 sensor with learning'+str(key))
+        #print(logs_3learning['Sigma_u'], dist, '3 sensor with learning')
 
 
-predictions['s3'][str(dist)] = logs_3['phi'].tolist()
-#predictions['kf2'][str(dist)] = logs_ukf['phi'].tolist()
-predictions['s3_learning'][str(dist)] = logs_3learning['phi'].tolist()
+
+    print("\n")
+
+    predictions['s3'][str(dist)] = logs_3['phi'].tolist()
+    #predictions['kf2'][str(dist)] = logs_ukf['phi'].tolist()
+    predictions['s3_learning'][str(dist)] = logs_3learning['phi'].tolist()
 
 
     #drive_motors(-50) # drive the motor backwards
+
+print('done predicting')
+
+
+
+print(learning_rates)
+print(sigma_preds)
 
 with open('learning_variances.json', 'w') as outfile:
     json.dump(predictions, outfile)

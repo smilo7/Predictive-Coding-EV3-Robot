@@ -33,9 +33,9 @@ def objective_func_linear(x, a, b):
 
 class wrapped_kf():
 
-    def __init__(self, g_params):
+    def __init__(self, g_params, dim_z=3):
         self.sigmas = MerweScaledSigmaPoints(n=2, alpha=.1, beta=10., kappa=0.)
-        self.ukf = UnscentedKalmanFilter(dim_x=2, dim_z=3, dt=1., hx=self.hx, fx=self.fx, points=self.sigmas)
+        self.ukf = UnscentedKalmanFilter(dim_x=2, dim_z=dim_z, dt=1., hx=self.hx, fx=self.fx, points=self.sigmas)
         
         self.s1params_a = g_params[0]
         self.s1params_b = g_params[1]
@@ -56,7 +56,6 @@ class wrapped_kf():
         self.ukf.R[1, 1] = s2_variance ** 2
         self.ukf.R[2, 2] = s3_variance ** 2
 
-
     def fx(self, x, dt):
         F = np.array([[1., 0],
                     [0., 1.]]) # state transition matrix
@@ -69,8 +68,58 @@ class wrapped_kf():
         return [d1, d2, d3]
 
 
+class wrapped_kf_2sensor(wrapped_kf):
+    def __init__(self, g_params):
+        super().__init__(g_params=g_params, dim_z=2)
 
-def run(N, sensor_variances, sensors, g_params, provided_measurements):
+    """
+    def __init__(self, g_params, dim_z=2):
+        self.sigmas = MerweScaledSigmaPoints(n=2, alpha=.1, beta=10., kappa=0.)
+        self.ukf = UnscentedKalmanFilter(dim_x=2, dim_z=dim_z, dt=1., hx=self.hx, fx=self.fx, points=self.sigmas)
+        
+        self.s1params_a = g_params[0]
+        self.s1params_b = g_params[1]
+        self.s1params_c = g_params[2]
+        
+        self.s2params_a = g_params[3]
+        self.s2params_b = g_params[4]
+        self.s2params_c = g_params[5]
+    """
+
+
+    def setup(self, s1_variance, s2_variance):
+        self.ukf.R[0, 0] = s1_variance ** 2 # set measurement variance for sensor 1 (top left)
+        self.ukf.R[1, 1] = s2_variance ** 2
+
+    def hx(self, x):
+        d1 = objective_func(x[0], self.s1params_a, self.s1params_b, self.s1params_c)
+        d2 = objective_func(x[0], self.s2params_a, self.s2params_b, self.s2params_c)
+        return [d1, d2]
+
+class wrapped_kf_1sensor(wrapped_kf):
+
+    def __init__(self, g_params):
+        super().__init__(g_params=g_params, dim_z=1)
+
+    """
+    def __init__(self, g_params, dim_z=1):
+        self.sigmas = MerweScaledSigmaPoints(n=2, alpha=.1, beta=10., kappa=0.)
+        self.ukf = UnscentedKalmanFilter(dim_x=2, dim_z=dim_z, dt=1., hx=self.hx, fx=self.fx, points=self.sigmas)
+        
+        self.s1params_a = g_params[0]
+        self.s1params_b = g_params[1]
+        self.s1params_c = g_params[2]
+    """
+
+    def setup(self, s1_variance):
+        self.ukf.R[0, 0] = s1_variance ** 2 # set measurement variance for sensor 1 (top left)
+
+    def hx(self, x):
+        d1 = objective_func(x[0], self.s1params_a, self.s1params_b, self.s1params_c)
+        return [d1]
+
+
+def run(N, sensor_variances, sensors, g_params, provided_measurements, num_sensors=3):
 
     SENSOR_NUM = len(sensors)
 
@@ -78,9 +127,15 @@ def run(N, sensor_variances, sensors, g_params, provided_measurements):
     s2_variance = sensor_variances[1]
     s3_variance = sensor_variances[2]
 
-    w_ukf = wrapped_kf(g_params)
-    w_ukf.setup(s1_variance, s2_variance, s3_variance)
-
+    if num_sensors == 3:
+        w_ukf = wrapped_kf(g_params, dim_z=3)
+        w_ukf.setup(s1_variance, s2_variance, s3_variance)
+    if num_sensors == 2:
+        w_ukf = wrapped_kf_2sensor(g_params)
+        w_ukf.setup(s1_variance, s2_variance)
+    if num_sensors == 1:
+        w_ukf = wrapped_kf_1sensor(g_params)
+        w_ukf.setup(s1_variance)
 
     phi = np.zeros(N) #distance predictions
     u = np.zeros((N, SENSOR_NUM))
@@ -97,7 +152,14 @@ def run(N, sensor_variances, sensors, g_params, provided_measurements):
             u[i, 1] = sensors[1].ambient_light_intensity #lsensor2
             u[i, 2] = sensors[2].distance_centimeters #us sensor
         
-        z = [u[i, 0], u[i, 1], u[i, 2]]
+
+        # assign the rigt amount of sensory input for dimensions
+        if num_sensors == 3:
+             z = [u[i, 0], u[i, 1], u[i, 2]]
+        elif num_sensors == 2:
+             z = [u[i, 0], u[i, 1]]
+        elif num_sensors == 1:
+            z = [u[i, 0]]
 
         start_time =  time.time()
         w_ukf.ukf.predict()
