@@ -122,18 +122,25 @@ class robot_brain:
 
         lr = 1
         dt = self.dt
+
+        lr_us= 1
+        lr_ls = 1
+        #if self.multisensory:
+        #    lr_us = 1
+        #    lr_ls = 0.1
+        #    dt = 0.01
         #page 4 of bogacz for the maths
 
         #Prediction errors
         e_p = (self.phi - V_p) * (1/self.Sigma_p) #current best guess of distance MINUS prior best guess (epsilon_p in bogacz)
         #print("here", self.g(self.phi, 0), self.g(self.phi, 1))
-        e_u1 = (u[0] - self.g(self.phi, 0)) * (1/self.Sigma_u[0]) #sensory reading - the light level of the generative model (the difference between sensory input and the inner model) (epsilon_u in bogacz)
-        e_u2 = (u[1] - self.g(self.phi, 1)) * (1/self.Sigma_u[1])
+        e_u1 = lr_ls * (u[0] - self.g(self.phi, 0)) * (1/self.Sigma_u[0]) #sensory reading - the light level of the generative model (the difference between sensory input and the inner model) (epsilon_u in bogacz)
+        e_u2 = lr_us * (u[1] - self.g(self.phi, 1)) * (1/self.Sigma_u[1])
 
         #computation carried out in nodes to compute prediction errors.
-        self.eps_p = self.eps_p + dt * lr * (e_p- self.Sigma_p * self.eps_p) # moves towards mean of prior
-        self.eps_u1 = self.eps_u1 + dt * lr * (e_u1 - self.Sigma_u[0] * self.eps_u1) # moves according to sensory input
-        self.eps_u2 = self.eps_u2 + dt * lr * (e_u2 - self.Sigma_u[1] * self.eps_u2)
+        #self.eps_p = self.eps_p + dt * lr * (e_p- self.Sigma_p * self.eps_p) # moves towards mean of prior
+        #self.eps_u1 = self.eps_u1 + dt * lr * (e_u1 - self.Sigma_u[0] * self.eps_u1) # moves according to sensory input
+        #self.eps_u2 = self.eps_u2 + dt * lr * (e_u2 - self.Sigma_u[1] * self.eps_u2)
 
         #self.phi = self.phi + dt * lr * ( - self.eps_p + self.eps_u * self.g_deriv(self.phi)) 
         #self.phi = self.phi + dt * lr * (- self.eps_p + self.eps_u1 * self.g_deriv(self.phi, 0) + self.eps_u2 * self.g_deriv(self.phi, 1))

@@ -157,6 +157,4 @@ print(lookup_tablejson)
 with open('lookup_table.json', 'w') as outfile:
     json.dump(lookup_tablejson, outfile)
 
-
-
 print("done. program finished :)")

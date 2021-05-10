@@ -128,12 +128,14 @@ class robot_brain:
         dt = self.dt#compact things
 
         #page 4 of bogacz for the maths
-
+        lr_us = 1
+        lr_ls = 1
+        
         #Prediction errors
         e_p = (self.phi - V_p) * (1/self.Sigma_p) #current best guess of distance MINUS prior best guess (epsilon_p in bogacz)
-        e_u1 = (u[0] - self.g(self.phi, 0)) * (1/self.Sigma_u[0]) #sensory reading - the light level of the generative model (the difference between sensory input and the inner model) (epsilon_u in bogacz)
-        e_u2 = (u[1] - self.g(self.phi, 1)) * (1/self.Sigma_u[1])
-        e_u3 = (u[2] - self.g(self.phi, 2)) * (1/self.Sigma_u[2]) #US sensor
+        e_u1 = lr_ls * (u[0] - self.g(self.phi, 0)) * (1/self.Sigma_u[0]) #sensory reading - the light level of the generative model (the difference between sensory input and the inner model) (epsilon_u in bogacz)
+        e_u2 = lr_ls * (u[1] - self.g(self.phi, 1)) * (1/self.Sigma_u[1])
+        e_u3 = lr_us * (u[2] - self.g(self.phi, 2)) * (1/self.Sigma_u[2]) #US sensor
 
         """
         #computation carried out in nodes to compute prediction errors.

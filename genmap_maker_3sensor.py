@@ -122,15 +122,23 @@ NUM_INTERVALS = (20) #numebr of distance intervals 150cm / 20
 
 data_out = {'s1':{'means':[], 'variances':[]}, 's2':{'means':[], 'variances':[]}, 's3':{'means':[], 'variances':[]}}
 
-
 dist_intervals = np.arange(10, 115, 5)
 #dist_intervals = np.arange(20, 85, 5)
+
+raw_log = { str(dist):{'s1':[], 's2':[], 's3':[]} for dist in dist_intervals}
+
 
 #for i in range(0, NUM_INTERVALS):
 for i, dist in enumerate(dist_intervals):
     #l_levels = get_l_levels()
     print(i, "out of", len(dist_intervals))
     l_levels = record_light(1000)
+
+    # log the raw sensory data
+    raw_log[str(dist)]['s1'] = l_levels[0]
+    raw_log[str(dist)]['s2'] = l_levels[1]
+    raw_log[str(dist)]['s3'] = l_levels[2]
+
     #print(l_levels)
     data_out['s1']['means'].append(calc_mean(l_levels[0]))
     data_out['s2']['means'].append(calc_mean(l_levels[1]))
@@ -139,6 +147,7 @@ for i, dist in enumerate(dist_intervals):
     data_out['s1']['variances'].append(calc_variance(l_levels[0]))
     data_out['s2']['variances'].append(calc_variance(l_levels[1]))
     data_out['s3']['variances'].append(calc_variance(l_levels[2]))
+
     #then drive motor for specifed distance
     drive_motors(-50)
     time.sleep(0.1)
@@ -150,6 +159,7 @@ for i, dist in enumerate(dist_intervals):
 
 print(data_out)
 write_dict_to_json(data_out, 'data_out.json')
+write_dict_to_json(raw_log, 'raw_sensory_log_genmap.json')
 #print("results", means, variances)
 #write_results_to_csv(means)
 #write_results_to_csv([means, variances])

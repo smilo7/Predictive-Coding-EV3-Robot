@@ -50,7 +50,7 @@ class wrapped_kf():
 
     def setup(self, s1_variance, s2_variance, s3_variance):
         
-        self.ukf.P *=50 #state variance (50cm estimate)
+        self.ukf.P *=110 #state variance (110cm estimate)
         
         self.ukf.R[0, 0] = s1_variance ** 2 # set measurement variance for sensor 1 (top left)
         self.ukf.R[1, 1] = s2_variance ** 2

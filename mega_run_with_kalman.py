@@ -116,6 +116,7 @@ dist_intervals = np.arange(10, 115, 5)
 #dist_intervals = np.arange(20, 85, 5)
 
 predictions = {'s1':{} , 's2':{}, 's3':{}, 'kf2':{}, 's2_multi':{}, 's3_learning':{}, 's1_us':{}}
+time_log = {'s1':[] , 's2':[], 's3':[], 'kf2':[], 's2_multi':[], 's3_learning':[], 's1_us':[]}
 
 print("begin\n---------")
 for dist in dist_intervals:
@@ -147,14 +148,14 @@ for dist in dist_intervals:
     logs_2 = run2(N, dt, V, V_p, 1, [s1_variance, s2_variance], [l_sensor1, l_sensor2], g_params[:], provided_measurements, multisensory=False)
     print_prediction(logs_2['phi'], dist, '2 sensor')
 
-    logs_3 = run3(N, dt_both, dist, V_p, 1, [s1_variance, s2_variance, s3_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements)
+    logs_3 = run3(N, dt, dist, V_p, 1, [s1_variance, s2_variance, s3_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements)
     print_prediction(logs_3['phi'], dist, '3 sensor')
 
     logs_3learning = run3(N, dt, dist, V_p, 1, [s1_variance, s2_variance, s3_variance], [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements, learn_variances=True)
     print_prediction(logs_3learning['phi'], dist, '3 sensor with learning')
 
     # make sure US sensor is in second slot in the list for muyltisensor True
-    logs_2multisensor = run2(N, dt_both, V, V_p, 1, [s1_variance, s3_variance], [l_sensor1, us_sensor], g_params[:], provided_measurements, multisensory=True)
+    logs_2multisensor = run2(N, dt, V, V_p, 1, [s1_variance, s3_variance], [l_sensor1, us_sensor], g_params[:], provided_measurements, multisensory=True)
     print_prediction(logs_2multisensor['phi'], dist, '2 sensor multisensor')
 
     logs_ukf = run_ukf(N, [s1_variance, s2_variance, s3_variance],  [l_sensor1, l_sensor2, us_sensor], g_params[:], provided_measurements)
@@ -172,24 +173,41 @@ for dist in dist_intervals:
     predictions['kf2'][str(dist)] = logs_ukf['phi'].tolist()
     predictions['s2_multi'][str(dist)] = logs_2multisensor['phi'].tolist()
     predictions['s3_learning'][str(dist)] = logs_3learning['phi'].tolist()
-   
+    
+    #all_logs = [logs_1_US, logs_1, logs_2, logs_3, logs_ukf, logs_2multisensor, logs_3learning]
+
+    time_log['s1_us'].append(logs_1_US['time'][-1])
+    time_log['s1'].append(logs_1['time'][-1])
+    time_log['s2'].append(logs_2['time'][-1])
+    time_log['s3'].append(logs_3['time'][-1])
+    time_log['kf2'].append(logs_ukf['time'][-1])
+    time_log['s2_multi'].append(logs_2multisensor['time'][-1])
+    time_log['s3_learning'].append(logs_3learning['time'][-1])
 
     drive_motors(-50)
 
-with open('phicombined_with_kalman_100iter10.json', 'w') as outfile:
+
+
+with open('dist_preds_final2.json', 'w') as outfile:
     json.dump(predictions, outfile)
+
+with open('time_log_final2.json', 'w') as outfile:
+    json.dump(time_log, outfile)
 
 with open("sensor_readings_7.csv", "w", newline="") as f:
     writer = csv.writer(f)
     writer.writerows(measurement_log)
 
 # save full log for luck
+"""
+save_log('1sensorUS', logs_1_US)
 save_log('1sensor', logs_1)
 save_log('2sensor', logs_2)
 save_log('3sensor', logs_3)
 save_log('2sensor_multi', logs_2multisensor)
 save_log('ukf', logs_ukf)
 save_log('3sensor_learning', logs_3learning)
+"""
 
 
 print("done!")
